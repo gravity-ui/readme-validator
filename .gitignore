@@ -1,0 +1,7 @@
+node_modules/
+*.tsbuildinfo
+coverage/
+
+# dist/ is intentionally committed: a JS GitHub Action runs straight from the
+# repo (no `npm install` on the runner), so the bundled dist/action.js must be
+# checked in. Rebuild with `npm run build` and commit dist/ alongside src/.

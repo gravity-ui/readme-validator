@@ -1,0 +1,29 @@
+name: 'Gravity UI README validator'
+description: 'Validate README files against the Gravity UI LLM-ready template.'
+author: 'Gravity UI'
+
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  paths:
+    description: 'Newline- or space-separated globs of README files to validate.'
+    required: false
+    default: 'README.md'
+  type:
+    description: 'Template type to validate against: "package" or "component".'
+    required: false
+    default: 'package'
+  comment:
+    description: 'Post a sticky comment with all problems when run from a pull request.'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'Token used to post the PR comment. Needs pull-requests: write.'
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: 'node24'
+  main: 'dist/action.cjs'
