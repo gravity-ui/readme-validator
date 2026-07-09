@@ -204,8 +204,19 @@ var validateComponentReadme = (content) => {
 
 // src/cli.ts
 var USAGE = `Usage:
-  gravity-readme --package <README.md>
-  gravity-readme --component <README.md>`;
+  gravity-readme --package <README.md | URL>
+  gravity-readme --component <README.md | URL>`;
+var isUrl = (target) => /^https?:\/\//i.test(target);
+var load = async (target) => {
+  if (isUrl(target)) {
+    const response = await fetch(target);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} ${response.statusText}`);
+    }
+    return response.text();
+  }
+  return fs.readFile(target, "utf8");
+};
 var report = (label, result) => {
   for (const warning of result.warnings) {
     console.warn(`  \u26A0 ${warning}`);
@@ -228,7 +239,7 @@ var main = async () => {
   }
   let content;
   try {
-    content = await fs.readFile(target, "utf8");
+    content = await load(target);
   } catch (error) {
     console.error(`Cannot read ${target}: ${error.message}`);
     process.exit(2);

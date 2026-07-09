@@ -11,8 +11,21 @@ import process from 'node:process';
 import {validateComponentReadme, validatePackageReadme} from './readme-validate';
 
 const USAGE = `Usage:
-  gravity-readme --package <README.md>
-  gravity-readme --component <README.md>`;
+  gravity-readme --package <README.md | URL>
+  gravity-readme --component <README.md | URL>`;
+
+const isUrl = (target: string): boolean => /^https?:\/\//i.test(target);
+
+const load = async (target: string): Promise<string> => {
+    if (isUrl(target)) {
+        const response = await fetch(target);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+        return response.text();
+    }
+    return fs.readFile(target, 'utf8');
+};
 
 interface Reportable {
     ok: boolean;
@@ -45,7 +58,7 @@ const main = async (): Promise<void> => {
 
     let content: string;
     try {
-        content = await fs.readFile(target, 'utf8');
+        content = await load(target);
     } catch (error) {
         console.error(`Cannot read ${target}: ${(error as Error).message}`);
         process.exit(2);
