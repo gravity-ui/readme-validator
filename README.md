@@ -72,7 +72,7 @@ The first step mints a short-lived token from the Gravity UI GitHub App (same pa
 
 With `type: package` (the default) the action **fails** the job unless the README has all of:
 
-- `## Install` (or `## Installation`)
+- `## Install` (or `## Installation`) — accepted at `##` or `###`
 - `## Usage` (or `## Getting started` / `## Quick start`)
 - `## License`
 - exactly one `## For AI agents` whose lead paragraph is a single well-formed sentence — one line, ends with a period, no links/images/badges. Badges, images and service markers (`<!--SANDBOX-->`, `<!--GITHUB_BLOCK-->`) must stay out of the block.

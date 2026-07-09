@@ -14,8 +14,12 @@ var USAGE_HEADINGS = ["Usage", "Getting started", "Quick start"];
 var LICENSE_HEADING = "License";
 var RECOMMENDED_HEADINGS = ["When to use", "When not to use", "Common pitfalls"];
 var SERVICE_MARKERS = ["<!--SANDBOX-->", "<!--GITHUB_BLOCK-->", "<!--/GITHUB_BLOCK-->"];
-var isAgentHeading = (node) => node.type === "heading" && node.depth === 2 && toString(node).trim() === AGENT_HEADING;
-var hasMainHeading = (main, names) => main.some((n) => n.type === "heading" && n.depth === 2 && names.includes(toString(n).trim()));
+var headingKey = (text) => text.trim().toLowerCase();
+var matchesHeading = (text, names) => names.some((n) => headingKey(n) === headingKey(text));
+var isAgentHeading = (node) => node.type === "heading" && node.depth === 2 && matchesHeading(toString(node), [AGENT_HEADING]);
+var hasMainHeading = (main, names, depths = [2]) => main.some(
+  (n) => n.type === "heading" && depths.includes(n.depth) && matchesHeading(toString(n), names)
+);
 var sliceNodes = (content, nodes) => {
   const start = nodes[0]?.position?.start.offset;
   const end = nodes.at(-1)?.position?.end.offset;
@@ -68,16 +72,57 @@ var analyze = (content) => {
     }
   };
 };
-var sectionBody = (main, content, names) => {
-  const idx = main.findIndex(
-    (n) => n.type === "heading" && n.depth === 2 && names.includes(toString(n).trim())
-  );
-  if (idx === -1)
-    return null;
-  const after = main.slice(idx + 1);
-  const nextH2 = after.findIndex((n) => n.type === "heading" && n.depth <= 2);
-  const bodyNodes = nextH2 === -1 ? after : after.slice(0, nextH2);
-  return sliceNodes(content, bodyNodes).trim() || null;
+var sectionBody = (main, content, names, depths = [2]) => {
+  for (const name of names) {
+    const idx = main.findIndex(
+      (n) => n.type === "heading" && depths.includes(n.depth) && headingKey(toString(n)) === headingKey(name)
+    );
+    if (idx === -1)
+      continue;
+    const depth = main[idx].depth;
+    const after = main.slice(idx + 1);
+    const nextSection = after.findIndex((n) => n.type === "heading" && n.depth <= depth);
+    const bodyNodes = nextSection === -1 ? after : after.slice(0, nextSection);
+    return sliceNodes(content, bodyNodes).trim() || null;
+  }
+  return null;
+};
+var dropSubsections = (nodes, exclude) => {
+  const kept = [];
+  let skipAboveDepth = null;
+  for (const node of nodes) {
+    if (skipAboveDepth !== null) {
+      if (node.type === "heading" && node.depth <= skipAboveDepth) {
+        skipAboveDepth = null;
+      } else {
+        continue;
+      }
+    }
+    if (node.type === "heading" && matchesHeading(toString(node), exclude)) {
+      skipAboveDepth = node.depth;
+      continue;
+    }
+    kept.push(node);
+  }
+  return kept;
+};
+var mergedSectionBodies = (main, content, names, depths = [2], exclude = []) => {
+  const parts = [];
+  main.forEach((node, idx) => {
+    if (node.type !== "heading" || !depths.includes(node.depth) || !matchesHeading(toString(node), names)) {
+      return;
+    }
+    const after = main.slice(idx + 1);
+    const nextSection = after.findIndex((n) => n.type === "heading" && n.depth <= node.depth);
+    const bodyNodes = nextSection === -1 ? after : after.slice(0, nextSection);
+    const kept = exclude.length ? dropSubsections(bodyNodes, exclude) : bodyNodes;
+    for (const n of kept) {
+      const body = sliceNodes(content, [n]).trim();
+      if (body)
+        parts.push(body);
+    }
+  });
+  return parts.length ? parts.join("\n\n") : null;
 };
 
 // src/readme-parse.ts
@@ -93,8 +138,8 @@ var parsePackageReadme = (content) => {
   return {
     agentPositioning: agent?.positioning ?? null,
     agentProse: agent?.prose ?? null,
-    install: sectionBody(main, content, INSTALL_HEADINGS),
-    usage: sectionBody(main, content, USAGE_HEADINGS)
+    install: sectionBody(main, content, INSTALL_HEADINGS, [2, 3]),
+    usage: mergedSectionBodies(main, content, USAGE_HEADINGS, [2], INSTALL_HEADINGS)
   };
 };
 var parseComponentReadme = (content) => {
@@ -134,9 +179,10 @@ var validateAgentBlock = (agent, errors, warnings) => {
   const { blockNodes, leadNodes, positioning } = agent;
   validatePositioning(positioning, leadNodes, errors);
   const sectionHeadings = blockNodes.filter((n) => n.type === "heading" && n.depth === 3).map((n) => toString3(n).trim());
-  const known = sectionHeadings.filter((h) => RECOMMENDED_HEADINGS.includes(h));
+  const recommendedIdx = (h) => RECOMMENDED_HEADINGS.findIndex((r) => headingKey(r) === headingKey(h));
+  const known = sectionHeadings.filter((h) => recommendedIdx(h) !== -1);
   for (const heading of sectionHeadings) {
-    if (!RECOMMENDED_HEADINGS.includes(heading)) {
+    if (recommendedIdx(heading) === -1) {
       warnings.push(
         `Non-standard section "### ${heading}"; prefer ${RECOMMENDED_HEADINGS.map(
           (h) => `"${h}"`
@@ -149,7 +195,7 @@ var validateAgentBlock = (agent, errors, warnings) => {
       'The block has only positioning; consider adding "When to use" and/or "Common pitfalls".'
     );
   }
-  const orderIdx = known.map((h) => RECOMMENDED_HEADINGS.indexOf(h));
+  const orderIdx = known.map(recommendedIdx);
   if (orderIdx.some((v, i) => i > 0 && v < orderIdx[i - 1])) {
     warnings.push(
       `Sections are out of the recommended order (${RECOMMENDED_HEADINGS.join(" \u2192 ")}).`
@@ -181,7 +227,7 @@ var validatePackageReadme = (content) => {
   const errors = [];
   const warnings = [];
   const { main, agent } = analyze(content);
-  if (!hasMainHeading(main, INSTALL_HEADINGS)) {
+  if (!hasMainHeading(main, INSTALL_HEADINGS, [2, 3])) {
     errors.push('Missing "## Install" (or "Installation") section.');
   }
   if (!hasMainHeading(main, USAGE_HEADINGS)) {
@@ -224,9 +270,7 @@ var validateComponentReadme = (content) => {
       warnings.push("Description looks too short to be a real sentence.");
     }
   }
-  const hasProps = main.some(
-    (n) => n.type === "heading" && n.depth === 2 && /^(Properties|Props)$/.test(toString3(n).trim())
-  );
+  const hasProps = hasMainHeading(main, ["Properties", "Props"]);
   if (!hasProps) {
     errors.push('Missing "## Properties" section.');
   }

@@ -48,11 +48,21 @@ export interface Analysis {
     agent: AgentBlock | null;
 }
 
-const isAgentHeading = (node: Content): boolean =>
-    node.type === 'heading' && node.depth === 2 && toString(node).trim() === AGENT_HEADING;
+// Section-name comparison is case-insensitive: `## Getting Started` and
+// `## getting started` match the same alias.
+export const headingKey = (text: string): string => text.trim().toLowerCase();
 
-export const hasMainHeading = (main: Content[], names: string[]): boolean =>
-    main.some(n => n.type === 'heading' && n.depth === 2 && names.includes(toString(n).trim()));
+/** Case-insensitive membership of a heading's text in a set of accepted aliases. */
+export const matchesHeading = (text: string, names: string[]): boolean =>
+    names.some(n => headingKey(n) === headingKey(text));
+
+const isAgentHeading = (node: Content): boolean =>
+    node.type === 'heading' && node.depth === 2 && matchesHeading(toString(node), [AGENT_HEADING]);
+
+export const hasMainHeading = (main: Content[], names: string[], depths: number[] = [2]): boolean =>
+    main.some(
+        n => n.type === 'heading' && depths.includes(n.depth) && matchesHeading(toString(n), names),
+    );
 
 const sliceNodes = (content: string, nodes: Content[]): string => {
     const start = nodes[0]?.position?.start.offset;
@@ -115,18 +125,100 @@ export const analyze = (content: string): Analysis => {
 };
 
 /**
- * Slices the verbatim body of a top-level `## <heading>` section (from after the
- * heading to the next `##`/EOF), matching any of the accepted heading aliases.
- * Returns null when no matching heading is present.
+ * Slices the verbatim body of a `## <heading>` (or, when `depths` allows it, a
+ * `### <heading>`) section — from after the heading to the next heading of the
+ * same or higher level (or EOF) — matching (case-insensitively) any accepted
+ * alias. A `### Installation` nested under `## Getting Started` therefore yields
+ * just its own body, not the rest of the parent section.
+ *
+ * Aliases are tried in priority order, not document order: given
+ * `['Usage', 'Getting started']`, a `## Usage` section wins even if a
+ * `## Getting Started` appears earlier. Returns null when no alias matches.
  */
-export const sectionBody = (main: Content[], content: string, names: string[]): string | null => {
-    const idx = main.findIndex(
-        n => n.type === 'heading' && n.depth === 2 && names.includes(toString(n).trim()),
-    );
-    if (idx === -1) return null;
+export const sectionBody = (
+    main: Content[],
+    content: string,
+    names: string[],
+    depths: number[] = [2],
+): string | null => {
+    for (const name of names) {
+        const idx = main.findIndex(
+            n =>
+                n.type === 'heading' &&
+                depths.includes(n.depth) &&
+                headingKey(toString(n)) === headingKey(name),
+        );
+        if (idx === -1) continue;
 
-    const after = main.slice(idx + 1);
-    const nextH2 = after.findIndex(n => n.type === 'heading' && n.depth <= 2);
-    const bodyNodes = nextH2 === -1 ? after : after.slice(0, nextH2);
-    return sliceNodes(content, bodyNodes).trim() || null;
+        const depth = (main[idx] as {depth: number}).depth;
+        const after = main.slice(idx + 1);
+        const nextSection = after.findIndex(n => n.type === 'heading' && n.depth <= depth);
+        const bodyNodes = nextSection === -1 ? after : after.slice(0, nextSection);
+        return sliceNodes(content, bodyNodes).trim() || null;
+    }
+    return null;
+};
+
+/**
+ * Drops any subsection whose heading matches `exclude` (with all of its nested
+ * content), returning the remaining nodes. Used to keep the focused
+ * `### Installation` subsection out of the merged `usage` block.
+ */
+const dropSubsections = (nodes: Content[], exclude: string[]): Content[] => {
+    const kept: Content[] = [];
+    let skipAboveDepth: number | null = null;
+    for (const node of nodes) {
+        if (skipAboveDepth !== null) {
+            // Stay in skip mode until a heading climbs back to the excluded level or higher.
+            if (node.type === 'heading' && node.depth <= skipAboveDepth) {
+                skipAboveDepth = null;
+            } else {
+                continue;
+            }
+        }
+        if (node.type === 'heading' && matchesHeading(toString(node), exclude)) {
+            skipAboveDepth = node.depth;
+            continue;
+        }
+        kept.push(node);
+    }
+    return kept;
+};
+
+/**
+ * Like `sectionBody`, but concatenates the bodies of *every* section matching an
+ * alias, in document order. Used for `usage`, where a `## Getting Started` guide
+ * and a `## Usage` section should merge into one block (so prose that lives
+ * outside the focused `### Installation` — e.g. prerequisites — is not lost).
+ * Subsections matching `exclude` are dropped, so the install command that already
+ * feeds the `install` field is not duplicated here.
+ */
+export const mergedSectionBodies = (
+    main: Content[],
+    content: string,
+    names: string[],
+    depths: number[] = [2],
+    exclude: string[] = [],
+): string | null => {
+    const parts: string[] = [];
+    main.forEach((node, idx) => {
+        if (
+            node.type !== 'heading' ||
+            !depths.includes(node.depth) ||
+            !matchesHeading(toString(node), names)
+        ) {
+            return;
+        }
+        const after = main.slice(idx + 1);
+        const nextSection = after.findIndex(n => n.type === 'heading' && n.depth <= node.depth);
+        const bodyNodes = nextSection === -1 ? after : after.slice(0, nextSection);
+        const kept = exclude.length ? dropSubsections(bodyNodes, exclude) : bodyNodes;
+        // Slice each kept node verbatim and join, so a dropped subsection in the
+        // middle doesn't drag its neighbours along with a single wide slice.
+        for (const n of kept) {
+            const body = sliceNodes(content, [n]).trim();
+            if (body) parts.push(body);
+        }
+    });
+    return parts.length ? parts.join('\n\n') : null;
 };

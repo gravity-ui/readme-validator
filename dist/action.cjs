@@ -36581,8 +36581,12 @@ var USAGE_HEADINGS = ["Usage", "Getting started", "Quick start"];
 var LICENSE_HEADING = "License";
 var RECOMMENDED_HEADINGS = ["When to use", "When not to use", "Common pitfalls"];
 var SERVICE_MARKERS = ["<!--SANDBOX-->", "<!--GITHUB_BLOCK-->", "<!--/GITHUB_BLOCK-->"];
-var isAgentHeading = (node2) => node2.type === "heading" && node2.depth === 2 && toString(node2).trim() === AGENT_HEADING;
-var hasMainHeading = (main, names) => main.some((n) => n.type === "heading" && n.depth === 2 && names.includes(toString(n).trim()));
+var headingKey = (text4) => text4.trim().toLowerCase();
+var matchesHeading = (text4, names) => names.some((n) => headingKey(n) === headingKey(text4));
+var isAgentHeading = (node2) => node2.type === "heading" && node2.depth === 2 && matchesHeading(toString(node2), [AGENT_HEADING]);
+var hasMainHeading = (main, names, depths = [2]) => main.some(
+  (n) => n.type === "heading" && depths.includes(n.depth) && matchesHeading(toString(n), names)
+);
 var sliceNodes = (content3, nodes) => {
   const start = nodes[0]?.position?.start.offset;
   const end = nodes.at(-1)?.position?.end.offset;
@@ -36661,9 +36665,10 @@ var validateAgentBlock = (agent, errors, warnings) => {
   const { blockNodes, leadNodes, positioning } = agent;
   validatePositioning(positioning, leadNodes, errors);
   const sectionHeadings = blockNodes.filter((n) => n.type === "heading" && n.depth === 3).map((n) => toString(n).trim());
-  const known = sectionHeadings.filter((h) => RECOMMENDED_HEADINGS.includes(h));
+  const recommendedIdx = (h) => RECOMMENDED_HEADINGS.findIndex((r) => headingKey(r) === headingKey(h));
+  const known = sectionHeadings.filter((h) => recommendedIdx(h) !== -1);
   for (const heading of sectionHeadings) {
-    if (!RECOMMENDED_HEADINGS.includes(heading)) {
+    if (recommendedIdx(heading) === -1) {
       warnings.push(
         `Non-standard section "### ${heading}"; prefer ${RECOMMENDED_HEADINGS.map(
           (h) => `"${h}"`
@@ -36676,7 +36681,7 @@ var validateAgentBlock = (agent, errors, warnings) => {
       'The block has only positioning; consider adding "When to use" and/or "Common pitfalls".'
     );
   }
-  const orderIdx = known.map((h) => RECOMMENDED_HEADINGS.indexOf(h));
+  const orderIdx = known.map(recommendedIdx);
   if (orderIdx.some((v, i) => i > 0 && v < orderIdx[i - 1])) {
     warnings.push(
       `Sections are out of the recommended order (${RECOMMENDED_HEADINGS.join(" \u2192 ")}).`
@@ -36708,7 +36713,7 @@ var validatePackageReadme = (content3) => {
   const errors = [];
   const warnings = [];
   const { main, agent } = analyze(content3);
-  if (!hasMainHeading(main, INSTALL_HEADINGS)) {
+  if (!hasMainHeading(main, INSTALL_HEADINGS, [2, 3])) {
     errors.push('Missing "## Install" (or "Installation") section.');
   }
   if (!hasMainHeading(main, USAGE_HEADINGS)) {
@@ -36751,9 +36756,7 @@ var validateComponentReadme = (content3) => {
       warnings.push("Description looks too short to be a real sentence.");
     }
   }
-  const hasProps = main.some(
-    (n) => n.type === "heading" && n.depth === 2 && /^(Properties|Props)$/.test(toString(n).trim())
-  );
+  const hasProps = hasMainHeading(main, ["Properties", "Props"]);
   if (!hasProps) {
     errors.push('Missing "## Properties" section.');
   }

@@ -95,6 +95,75 @@ describe('validatePackageReadme · License', () => {
     });
 });
 
+// --- section-heading flexibility -----------------------------------------
+
+describe('validatePackageReadme · heading flexibility', () => {
+    const build = (installHeading: string, other?: {usage?: string; agent?: string}) =>
+        [
+            '# Foo',
+            '',
+            '## Getting Started',
+            '',
+            installHeading,
+            '',
+            '```shell',
+            'npm i foo',
+            '```',
+            '',
+            `## ${other?.usage ?? 'Usage'}`,
+            '',
+            'Import it.',
+            '',
+            '## License',
+            '',
+            'MIT',
+            '',
+            `## ${other?.agent ?? 'For AI agents'}`,
+            '',
+            'Foo is the base thing for Gravity UI apps, distinct from its neighbors.',
+        ].join('\n');
+
+    test('accepts "## Install" at the `###` level', () => {
+        expect(validatePackageReadme(build('### Installation')).ok).toBe(true);
+    });
+
+    test('accepts section headings regardless of case', () => {
+        const result = validatePackageReadme(
+            build('### installation', {usage: 'usage', agent: 'For AI Agents'}),
+        );
+        expect(result.errors).toEqual([]);
+    });
+
+    test('recommended `###` headings are matched case-insensitively (no warning)', () => {
+        const readme = [
+            '# Foo',
+            '',
+            '## Install',
+            '',
+            'npm i foo',
+            '',
+            '## Usage',
+            '',
+            'Use it.',
+            '',
+            '## License',
+            '',
+            'MIT',
+            '',
+            '## For AI agents',
+            '',
+            'Foo is the base thing for Gravity UI apps, distinct from its neighbors.',
+            '',
+            '### WHEN TO USE',
+            '',
+            '- x',
+        ].join('\n');
+        const result = validatePackageReadme(readme);
+        expect(result.ok).toBe(true);
+        expect(hasWarning(result.warnings, 'Non-standard section')).toBe(false);
+    });
+});
+
 // --- shipped templates ---------------------------------------------------
 
 describe('shipped templates stay valid', () => {

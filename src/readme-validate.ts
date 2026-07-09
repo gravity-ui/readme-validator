@@ -11,6 +11,7 @@ import {
     analyze,
     hasMainHeading,
     hasNodeOfType,
+    headingKey,
     INSTALL_HEADINGS,
     LICENSE_HEADING,
     parse,
@@ -75,9 +76,11 @@ const validateAgentBlock = (agent: AgentBlock, errors: string[], warnings: strin
         .filter(n => n.type === 'heading' && n.depth === 3)
         .map(n => toString(n).trim());
 
-    const known = sectionHeadings.filter(h => RECOMMENDED_HEADINGS.includes(h));
+    const recommendedIdx = (h: string): number =>
+        RECOMMENDED_HEADINGS.findIndex(r => headingKey(r) === headingKey(h));
+    const known = sectionHeadings.filter(h => recommendedIdx(h) !== -1);
     for (const heading of sectionHeadings) {
-        if (!RECOMMENDED_HEADINGS.includes(heading)) {
+        if (recommendedIdx(heading) === -1) {
             warnings.push(
                 `Non-standard section "### ${heading}"; prefer ${RECOMMENDED_HEADINGS.map(
                     h => `"${h}"`,
@@ -92,7 +95,7 @@ const validateAgentBlock = (agent: AgentBlock, errors: string[], warnings: strin
         );
     }
 
-    const orderIdx = known.map(h => RECOMMENDED_HEADINGS.indexOf(h));
+    const orderIdx = known.map(recommendedIdx);
     if (orderIdx.some((v, i) => i > 0 && v < orderIdx[i - 1]!)) {
         warnings.push(
             `Sections are out of the recommended order (${RECOMMENDED_HEADINGS.join(' → ')}).`,
@@ -128,7 +131,7 @@ export const validatePackageReadme = (content: string): PackageValidation => {
     const {main, agent} = analyze(content);
 
     // Required top-level sections the generator inlines.
-    if (!hasMainHeading(main, INSTALL_HEADINGS)) {
+    if (!hasMainHeading(main, INSTALL_HEADINGS, [2, 3])) {
         errors.push('Missing "## Install" (or "Installation") section.');
     }
     if (!hasMainHeading(main, USAGE_HEADINGS)) {
@@ -181,12 +184,7 @@ export const validateComponentReadme = (content: string): ComponentValidation =>
         }
     }
 
-    const hasProps = main.some(
-        n =>
-            n.type === 'heading' &&
-            n.depth === 2 &&
-            /^(Properties|Props)$/.test(toString(n).trim()),
-    );
+    const hasProps = hasMainHeading(main, ['Properties', 'Props']);
     if (!hasProps) {
         errors.push('Missing "## Properties" section.');
     }

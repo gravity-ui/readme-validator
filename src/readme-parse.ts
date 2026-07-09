@@ -4,7 +4,14 @@
 
 import {toString} from 'mdast-util-to-string';
 
-import {analyze, INSTALL_HEADINGS, parse, sectionBody, USAGE_HEADINGS} from './readme-ast';
+import {
+    analyze,
+    INSTALL_HEADINGS,
+    mergedSectionBodies,
+    parse,
+    sectionBody,
+    USAGE_HEADINGS,
+} from './readme-ast';
 
 export interface MetaExtract {
     found: boolean;
@@ -23,9 +30,12 @@ export interface PackageExtract {
     agentPositioning: string | null;
     // The block's `###` prose (When to use / not / pitfalls), positioning stripped → package llms.txt.
     agentProse: string | null;
-    // Verbatim `## Install` / `## Installation` body → inlined into package llms.txt.
+    // Verbatim `## Install` / `## Installation` body (also accepted at `###`, e.g.
+    // nested under `## Getting Started`) → inlined into package llms.txt.
     install: string | null;
     // Verbatim `## Usage` / `## Getting started` / `## Quick start` body → inlined.
+    // When several of these are present (e.g. a `## Getting Started` guide plus a
+    // `## Usage` section), their bodies are merged in document order.
     usage: string | null;
 }
 
@@ -58,8 +68,8 @@ export const parsePackageReadme = (content: string): PackageExtract => {
     return {
         agentPositioning: agent?.positioning ?? null,
         agentProse: agent?.prose ?? null,
-        install: sectionBody(main, content, INSTALL_HEADINGS),
-        usage: sectionBody(main, content, USAGE_HEADINGS),
+        install: sectionBody(main, content, INSTALL_HEADINGS, [2, 3]),
+        usage: mergedSectionBodies(main, content, USAGE_HEADINGS, [2], INSTALL_HEADINGS),
     };
 };
 

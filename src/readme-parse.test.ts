@@ -92,6 +92,49 @@ describe('parsePackageReadme', () => {
         expect(result.usage).toBe('usage body');
     });
 
+    test('extracts a `### Installation` nested under `## Getting Started`', () => {
+        const readme = [
+            '# Foo',
+            '',
+            '## Getting Started',
+            '',
+            '### Prerequisites',
+            '',
+            'React 18 must be installed.',
+            '',
+            '### Installation',
+            '',
+            '```shell',
+            'npm install @gravity-ui/foo',
+            '```',
+            '',
+            '## Usage',
+            '',
+            'Import components directly.',
+            '',
+        ].join('\n');
+        const result = parsePackageReadme(readme);
+        // install stops at the next same-or-higher heading, so it is just its own body.
+        expect(result.install).toBe('```shell\nnpm install @gravity-ui/foo\n```');
+        expect(result.install?.includes('Prerequisites')).toBe(false);
+        expect(result.install?.includes('Usage')).toBe(false);
+        // The `## Getting Started` body (incl. its prerequisites prose) merges into usage
+        // alongside the dedicated `## Usage` section, so nothing outside install is lost...
+        expect(result.usage?.includes('React 18 must be installed.')).toBe(true);
+        expect(result.usage?.includes('Import components directly.')).toBe(true);
+        // ...but the `### Installation` subsection is dropped from usage (it feeds install).
+        expect(result.usage?.includes('npm install @gravity-ui/foo')).toBe(false);
+        expect(result.usage?.includes('### Installation')).toBe(false);
+    });
+
+    test('matches section aliases case-insensitively', () => {
+        const result = parsePackageReadme(
+            '# Foo\n\n## INSTALLATION\n\ninstall body\n\n## Getting Started\n\nusage body\n',
+        );
+        expect(result.install).toBe('install body');
+        expect(result.usage).toBe('usage body');
+    });
+
     test('returns all-null for a README without the template sections', () => {
         expect(parsePackageReadme('# Foo\n\nsome prose\n')).toEqual({
             agentPositioning: null,
