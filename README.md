@@ -37,11 +37,18 @@ Validate READMEs in CI and get inline annotations on the pull request:
 
 ```yaml
 # .github/workflows/readme.yml
-name: README
-on: [pull_request]
+name: Validate README
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - README.md
+
 permissions:
   contents: read
-  pull-requests: write # needed to post the summary comment
+  pull-requests: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
