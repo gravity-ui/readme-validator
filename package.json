@@ -8,8 +8,14 @@
     "types": "dist/index.d.ts",
     "exports": {
         ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": {
+                "types": "./dist/index.d.ts",
+                "default": "./dist/index.js"
+            },
+            "require": {
+                "types": "./dist/index.d.cts",
+                "default": "./dist/index.cjs"
+            }
         }
     },
     "bin": {
@@ -22,8 +28,9 @@
     ],
     "scripts": {
         "typecheck": "tsc",
-        "build": "npm run lint && npm run typecheck && npm run build:lib && npm run build:cli && npm run build:action",
+        "build": "npm run lint && npm run typecheck && npm run build:lib && npm run build:lib:cjs && npm run build:cli && npm run build:action",
         "build:lib": "tsc --project tsconfig.build.json",
+        "build:lib:cjs": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/index.cjs && cp dist/index.d.ts dist/index.d.cts",
         "build:cli": "esbuild src/cli.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outfile=dist/cli.js",
         "build:action": "esbuild src/action.ts --bundle --platform=node --target=node24 --format=cjs --outfile=dist/action.cjs",
         "test": "NODE_OPTIONS=--experimental-vm-modules jest",
