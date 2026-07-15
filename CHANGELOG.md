@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/gravity-ui/readme-validator/compare/v1.2.1...v1.2.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* build with types ([df7419b](https://github.com/gravity-ui/readme-validator/commit/df7419b67f3da00aef354f71713d9a11efa0c008))
+
 ## [1.2.1](https://github.com/gravity-ui/readme-validator/compare/v1.2.0...v1.2.1) (2026-07-15)
 
 
