@@ -1,5 +1,5 @@
 // Tests for the pure PR-comment builder.
-import {buildComment, MARKER} from './action-report';
+import {buildComment, MARKER} from './action-report.js';
 
 describe('buildComment', () => {
     test('carries the marker so the comment can be found and updated', () => {

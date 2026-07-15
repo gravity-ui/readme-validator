@@ -2,8 +2,8 @@
     "extends": "@gravity-ui/tsconfig",
     "compilerOptions": {
         "target": "ESNext",
-        "module": "ESNext",
-        "moduleResolution": "Bundler",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
         "lib": ["ESNext"],
         "types": ["node", "jest"],
         "strict": true,

@@ -5,6 +5,13 @@
     "license": "MIT",
     "type": "module",
     "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
     "bin": {
         "gravity-readme": "dist/cli.js"
     },
@@ -16,7 +23,7 @@
     "scripts": {
         "typecheck": "tsc",
         "build": "npm run lint && npm run typecheck && npm run build:lib && npm run build:cli && npm run build:action",
-        "build:lib": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outfile=dist/index.js",
+        "build:lib": "tsc --project tsconfig.build.json",
         "build:cli": "esbuild src/cli.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outfile=dist/cli.js",
         "build:action": "esbuild src/action.ts --bundle --platform=node --target=node24 --format=cjs --outfile=dist/action.cjs",
         "test": "NODE_OPTIONS=--experimental-vm-modules jest",

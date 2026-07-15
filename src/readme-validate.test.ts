@@ -4,7 +4,7 @@
 // (valid) on its first line to assert a specific message.
 import {readFileSync, readdirSync} from 'node:fs';
 
-import {validateComponentReadme, validatePackageReadme} from './readme-validate';
+import {validateComponentReadme, validatePackageReadme} from './readme-validate.js';
 
 interface Fixture {
     name: string;

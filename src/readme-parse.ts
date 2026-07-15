@@ -11,7 +11,7 @@ import {
     parse,
     sectionBody,
     USAGE_HEADINGS,
-} from './readme-ast';
+} from './readme-ast.js';
 
 export interface MetaExtract {
     found: boolean;

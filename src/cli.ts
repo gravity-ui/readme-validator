@@ -8,7 +8,7 @@
 import fs from 'node:fs/promises';
 import process from 'node:process';
 
-import {validateComponentReadme, validatePackageReadme} from './readme-validate';
+import {validateComponentReadme, validatePackageReadme} from './readme-validate.js';
 
 const USAGE = `Usage:
   gravity-readme --package <README.md | URL>

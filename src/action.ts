@@ -11,10 +11,10 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import * as glob from '@actions/glob';
 
-import type {FileResult, Type} from './action-report';
-import {buildComment, MARKER} from './action-report';
-import type {ComponentValidation, PackageValidation} from './readme-validate';
-import {validateComponentReadme, validatePackageReadme} from './readme-validate';
+import type {FileResult, Type} from './action-report.js';
+import {buildComment, MARKER} from './action-report.js';
+import type {ComponentValidation, PackageValidation} from './readme-validate.js';
+import {validateComponentReadme, validatePackageReadme} from './readme-validate.js';
 
 const validators: Record<Type, (content: string) => PackageValidation | ComponentValidation> = {
     package: validatePackageReadme,

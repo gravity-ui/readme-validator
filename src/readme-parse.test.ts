@@ -1,5 +1,5 @@
 // Tests for the read-only README extraction.
-import {extractMeta, parseComponentReadme, parsePackageReadme} from './readme-parse';
+import {extractMeta, parseComponentReadme, parsePackageReadme} from './readme-parse.js';
 
 // --- extractMeta ---------------------------------------------------------
 

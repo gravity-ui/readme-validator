@@ -5,6 +5,9 @@ module.exports = {
     extensionsToTreatAsEsm: ['.ts'],
     roots: ['<rootDir>/src'],
     moduleFileExtensions: ['ts', 'js', 'json'],
+    moduleNameMapper: {
+        '^(\\.{1,2}/.*)\\.js$': '$1',
+    },
     transform: {
         '^.+\\.ts$': ['ts-jest', {useESM: true, tsconfig: {verbatimModuleSyntax: false}}],
     },
