@@ -133,6 +133,9 @@ var require_extend = __commonJS({
 // src/index.ts
 var src_exports = {};
 __export(src_exports, {
+  buildDocs: () => buildDocs,
+  cleanMarkdown: () => cleanMarkdown,
+  createDefaultDocsConfig: () => createDefaultDocsConfig,
   extractMeta: () => extractMeta,
   parseComponentReadme: () => parseComponentReadme,
   parsePackageReadme: () => parsePackageReadme,
@@ -651,10 +654,10 @@ function resolveAll(constructs2, events, context) {
   const called = [];
   let index2 = -1;
   while (++index2 < constructs2.length) {
-    const resolve = constructs2[index2].resolveAll;
-    if (resolve && !called.includes(resolve)) {
-      events = resolve(events, context);
-      called.push(resolve);
+    const resolve2 = constructs2[index2].resolveAll;
+    if (resolve2 && !called.includes(resolve2)) {
+      events = resolve2(events, context);
+      called.push(resolve2);
     }
   }
   return events;
@@ -7030,7 +7033,7 @@ function transformGfmAutolinkLiterals(tree) {
     { ignore: ["link", "linkReference"] }
   );
 }
-function findUrl(_, protocol, domain2, path2, match) {
+function findUrl(_, protocol, domain2, path3, match) {
   let prefix = "";
   if (!previous2(match)) {
     return false;
@@ -7043,7 +7046,7 @@ function findUrl(_, protocol, domain2, path2, match) {
   if (!isCorrectDomain(domain2)) {
     return false;
   }
-  const parts = splitUrl(domain2 + path2);
+  const parts = splitUrl(domain2 + path3);
   if (!parts[0])
     return false;
   const result = {
@@ -10098,13 +10101,13 @@ var VFile = class {
    *
    * @param {string | URL} path
    */
-  set path(path2) {
-    if (isUrl(path2)) {
-      path2 = (0, import_url.fileURLToPath)(path2);
+  set path(path3) {
+    if (isUrl(path3)) {
+      path3 = (0, import_url.fileURLToPath)(path3);
     }
-    assertNonEmpty(path2, "path");
-    if (this.path !== path2) {
-      this.history.push(path2);
+    assertNonEmpty(path3, "path");
+    if (this.path !== path3) {
+      this.history.push(path3);
     }
   }
   /**
@@ -10118,9 +10121,9 @@ var VFile = class {
    *
    * Cannot be set if there’s no `path` yet.
    */
-  set dirname(dirname) {
+  set dirname(dirname2) {
     assertPath(this.basename, "dirname");
-    this.path = import_path.default.join(dirname || "", this.basename);
+    this.path = import_path.default.join(dirname2 || "", this.basename);
   }
   /**
    * Get the basename (including extname) (example: `'index.min.js'`).
@@ -10281,8 +10284,8 @@ function assertNonEmpty(part, name) {
     throw new Error("`" + name + "` cannot be empty");
   }
 }
-function assertPath(path2, name) {
-  if (!path2) {
+function assertPath(path3, name) {
+  if (!path3) {
     throw new Error("Setting `" + name + "` requires `path` to be set too");
   }
 }
@@ -10309,7 +10312,7 @@ function base() {
   processor2.stringify = stringify;
   processor2.run = run;
   processor2.runSync = runSync;
-  processor2.process = process;
+  processor2.process = process2;
   processor2.processSync = processSync;
   return processor2;
   function processor2() {
@@ -10460,14 +10463,14 @@ function base() {
       return new Promise(executor);
     }
     executor(null, callback);
-    function executor(resolve, reject) {
+    function executor(resolve2, reject) {
       transformers.run(node2, vfile(doc), done);
       function done(error, tree, file) {
         tree = tree || node2;
         if (error) {
           reject(error);
-        } else if (resolve) {
-          resolve(tree);
+        } else if (resolve2) {
+          resolve2(tree);
         } else {
           callback(null, tree, file);
         }
@@ -10486,7 +10489,7 @@ function base() {
       complete = true;
     }
   }
-  function process(doc, callback) {
+  function process2(doc, callback) {
     processor2.freeze();
     assertParser("process", processor2.Parser);
     assertCompiler("process", processor2.Compiler);
@@ -10494,7 +10497,7 @@ function base() {
       return new Promise(executor);
     }
     executor(null, callback);
-    function executor(resolve, reject) {
+    function executor(resolve2, reject) {
       const file = vfile(doc);
       processor2.run(processor2.parse(file), file, (error, tree, file2) => {
         if (error || !tree || !file2) {
@@ -10513,8 +10516,8 @@ function base() {
       function done(error, file2) {
         if (error || !file2) {
           reject(error);
-        } else if (resolve) {
-          resolve(file2);
+        } else if (resolve2) {
+          resolve2(file2);
         } else {
           callback(null, file2);
         }
@@ -10868,8 +10871,234 @@ var validateComponentReadme = (content3) => {
   }
   return { ok: errors.length === 0, errors, warnings, description };
 };
+
+// src/cleanMarkdown.ts
+function cleanMarkdown(content3) {
+  let text4 = content3.replace(/\r\n/g, "\n");
+  text4 = text4.replace(/<!--SANDBOX[\s\S]*?SANDBOX-->/g, "");
+  text4 = text4.replace(/<!--LANDING_BLOCK[\s\S]*?LANDING_BLOCK-->/g, "");
+  text4 = text4.replace(/<!--\/?GITHUB_BLOCK-->/g, "");
+  text4 = text4.replace(/<!--[\s\S]*?-->/g, "");
+  text4 = text4.replace(/^[ \t]*!\[[^\]]*\]\([^)]*\)[ \t]*$/gm, "");
+  text4 = text4.replace(/!\[[^\]]*\]\([^)]*\)/g, "");
+  text4 = text4.replace(/[ \t]+$/gm, "");
+  text4 = text4.replace(/\n{3,}/g, "\n\n");
+  return `${text4.trim()}
+`;
+}
+
+// src/buildDocs.ts
+var fs = __toESM(require("node:fs"), 1);
+var path2 = __toESM(require("node:path"), 1);
+var DEFAULT_EXCLUDE = ["__stories__", "__tests__", "__mocks__", "__snapshots__"];
+var README_AI_SECTION = "For AI agents";
+var README_INSTALL_SECTION = "Install";
+var README_USAGE_SECTION = "Usage";
+function createDefaultDocsConfig(rootDir = process.cwd(), packageName) {
+  return {
+    rootDir,
+    packageName: packageName ?? readPackageName(rootDir),
+    outDir: path2.join(rootDir, "build", "docs"),
+    sources: [
+      {
+        title: "Guides",
+        kind: "markdown",
+        baseDir: "docs",
+        outPrefix: "guides",
+        nameFromTitle: true
+      },
+      {
+        title: "Components",
+        kind: "readme",
+        baseDir: "src/components",
+        outPrefix: "components",
+        exclude: ["legacy"]
+      },
+      {
+        title: "Hooks",
+        kind: "readme",
+        baseDir: "src/hooks",
+        outPrefix: "hooks",
+        exclude: ["private"]
+      }
+    ]
+  };
+}
+function buildDocs(config = createDefaultDocsConfig()) {
+  const { outDir, sources } = config;
+  const rootDir = config.rootDir ?? process.cwd();
+  const packageName = config.packageName ?? readPackageName(rootDir);
+  fs.rmSync(outDir, { recursive: true, force: true });
+  const listed = sources.map((source) => ({ source, items: listSource(rootDir, source) }));
+  const docMap = /* @__PURE__ */ new Map();
+  for (const { source, items } of listed) {
+    for (const item of items) {
+      docMap.set(item.source, item.outRel);
+      if (source.kind === "readme") {
+        docMap.set(path2.dirname(item.source), item.outRel);
+      }
+    }
+  }
+  const sections = [];
+  for (const { source, items } of listed) {
+    const entries = [];
+    for (const { source: file, name, outRel } of items) {
+      const raw = fs.readFileSync(file, "utf8");
+      const parsed = parseComponentReadme(raw);
+      const cleaned = rewriteDocLinks(cleanMarkdown(raw), file, outRel, docMap);
+      writeDoc(path2.join(outDir, outRel), cleaned);
+      entries.push({
+        name: source.nameFromTitle ? parsed.title || name : name,
+        rel: outRel,
+        summary: collapseWhitespace(parsed.description ?? "")
+      });
+    }
+    sections.push({ title: source.title, entries });
+  }
+  const outRelToRoot = path2.relative(rootDir, outDir).split(path2.sep).join("/");
+  const readmePath = path2.join(rootDir, "README.md");
+  const overview = rewriteDocLinks(readPackageOverview(readmePath), readmePath, "", docMap);
+  writeDoc(
+    path2.join(outDir, "INDEX.md"),
+    renderIndex(packageName, outRelToRoot, sections, overview)
+  );
+  const total = sections.reduce((sum, section) => sum + section.entries.length, 0);
+  return { sections, total };
+}
+function findReadmes(dir, exclude = []) {
+  if (!fs.existsSync(dir)) {
+    return [];
+  }
+  const skip = /* @__PURE__ */ new Set([...DEFAULT_EXCLUDE, ...exclude]);
+  const result = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path2.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (skip.has(entry.name)) {
+        continue;
+      }
+      result.push(...findReadmes(fullPath, exclude));
+    } else if (/^readme\.md$/i.test(entry.name)) {
+      result.push(fullPath);
+    }
+  }
+  return result;
+}
+function findMarkdown(dir) {
+  if (!fs.existsSync(dir)) {
+    return [];
+  }
+  const result = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path2.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      result.push(...findMarkdown(fullPath));
+    } else if (entry.name.endsWith(".md")) {
+      result.push(fullPath);
+    }
+  }
+  return result;
+}
+function readPackageName(rootDir) {
+  const pkg = JSON.parse(fs.readFileSync(path2.join(rootDir, "package.json"), "utf8"));
+  return pkg.name ?? "";
+}
+function writeDoc(outPath, content3) {
+  fs.mkdirSync(path2.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, content3);
+}
+function listSource(rootDir, { kind, baseDir, outPrefix, exclude }) {
+  const absBase = path2.join(rootDir, baseDir);
+  if (kind === "readme") {
+    return findReadmes(absBase, exclude).map((source) => {
+      const name = path2.relative(absBase, path2.dirname(source)).split(path2.sep).join("/");
+      return { source, name, outRel: path2.posix.join(outPrefix, `${name}.md`) };
+    }).filter((item) => item.name !== "");
+  }
+  return findMarkdown(absBase).map((source) => {
+    const rel = path2.relative(absBase, source).split(path2.sep).join("/");
+    return { source, name: rel.replace(/\.md$/, ""), outRel: path2.posix.join(outPrefix, rel) };
+  });
+}
+function rewriteDocLinks(markdown, source, outRel, docMap) {
+  return markdown.replace(/\[([^\]]*)\]\(([^)]+)\)/g, (whole, text4, target) => {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith("#")) {
+      return whole;
+    }
+    const hashIndex = target.indexOf("#");
+    const relPath = hashIndex === -1 ? target : target.slice(0, hashIndex);
+    const anchor = hashIndex === -1 ? "" : target.slice(hashIndex);
+    const absTarget = path2.resolve(path2.dirname(source), relPath);
+    const targetOut = docMap.get(absTarget);
+    if (!targetOut) {
+      return text4;
+    }
+    let relOut = path2.posix.relative(path2.posix.dirname(outRel), targetOut);
+    if (!relOut.startsWith(".")) {
+      relOut = `./${relOut}`;
+    }
+    return `[${text4}](${relOut}${anchor})`;
+  });
+}
+function renderSection(title, entries) {
+  if (!entries.length) {
+    return "";
+  }
+  const rows = entries.slice().sort((a, b) => a.name.localeCompare(b.name)).map(({ name, rel, summary }) => `- [${name}](./${rel})${summary ? ` \u2014 ${summary}` : ""}`).join("\n");
+  return `## ${title}
+
+${rows}
+`;
+}
+function renderIndex(packageName, outRelToRoot, sections, overview) {
+  const installedPath = path2.posix.join("node_modules", packageName, outRelToRoot);
+  const header = [
+    `# ${packageName} documentation`,
+    "",
+    `Documentation for the **installed** version of \`${packageName}\`.`,
+    "Your training data may be outdated \u2014 these files are the source of truth.",
+    "",
+    `Paths are relative to this file (\`${installedPath}/\`).`,
+    ""
+  ].join("\n");
+  return [header, overview, ...sections.map(({ title, entries }) => renderSection(title, entries))].filter(Boolean).join("\n");
+}
+function readPackageOverview(readmePath) {
+  if (!fs.existsSync(readmePath)) {
+    return "";
+  }
+  const { agentPositioning, agentProse, install, usage } = parsePackageReadme(
+    fs.readFileSync(readmePath, "utf8")
+  );
+  const parts = [];
+  if (agentPositioning || agentProse) {
+    parts.push(`## ${README_AI_SECTION}`);
+    if (agentPositioning) {
+      parts.push(agentPositioning);
+    }
+    if (agentProse) {
+      parts.push(agentProse);
+    }
+  }
+  if (install) {
+    parts.push(`## ${README_INSTALL_SECTION}`, install);
+  }
+  if (usage) {
+    parts.push(`## ${README_USAGE_SECTION}`, usage);
+  }
+  if (parts.length === 0) {
+    return "";
+  }
+  return cleanMarkdown(parts.join("\n\n"));
+}
+function collapseWhitespace(text4) {
+  return text4.replace(/\s+/g, " ").trim();
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  buildDocs,
+  cleanMarkdown,
+  createDefaultDocsConfig,
   extractMeta,
   parseComponentReadme,
   parsePackageReadme,

@@ -31,6 +31,35 @@ const {agentPositioning, agentProse, install, usage} = parsePackageReadme(readme
 const {ok, errors, warnings} = validatePackageReadme(readme);
 ```
 
+## Building AI docs (`buildDocs`, `cleanMarkdown`)
+
+Beyond parsing, the package ships the helpers that turn a package's READMEs into
+an AI-facing documentation tree bundled inside the npm tarball, so an agent in a
+consumer project reads docs matching the installed version.
+
+- **`cleanMarkdown(content)`** — strips Storybook/GitHub service markers
+  (`SANDBOX`, `LANDING_BLOCK`, `GITHUB_BLOCK`), standalone HTML comments, badges
+  and images. Returns markdown terminated by a single newline.
+- **`createDefaultDocsConfig(rootDir?, packageName?)`** — the shared gravity-ui
+  layout: `docs/**/*.md` → `build/docs/guides/`, `src/components/*/README` →
+  `build/docs/components/` (`legacy/` excluded), `src/hooks/*/README` →
+  `build/docs/hooks/` (`private/` excluded).
+- **`buildDocs(config?)`** — generates the docs tree from the config's sources,
+  rewriting intra-repo `README.md` links to resolve inside the output, dropping
+  links to docs that aren't shipped, and cleaning the package README's
+  `For AI agents` / `Install` / `Usage` sections to the top of the generated
+  `INDEX.md`. A plain function (not a gulp plugin) — call it from any pipeline.
+
+```ts
+import {buildDocs, createDefaultDocsConfig, cleanMarkdown} from '@gravity-ui/readme-validator';
+
+// buildDocs() with no config uses createDefaultDocsConfig(), rooted at process.cwd().
+buildDocs();
+
+// Or drive it from a gulp task / npm script with a custom config:
+buildDocs(createDefaultDocsConfig('path/to/repo', '@scope/pkg'));
+```
+
 ## GitHub Action
 
 Validate READMEs in CI and get inline annotations on the pull request:
