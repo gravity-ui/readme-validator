@@ -10,7 +10,7 @@ module.exports = {
         'plugin:@typescript-eslint/recommended',
         'plugin:prettier/recommended',
     ],
-    ignorePatterns: ['dist', 'node_modules', 'src/examples'],
+    ignorePatterns: ['dist', 'node_modules', 'src/examples', 'src/buildDocs-fixtures'],
     parser: '@typescript-eslint/parser',
     parserOptions: {
         ecmaVersion: 2022,
